@@ -1,0 +1,132 @@
+# AI-Based Personalized Health Monitoring System
+
+# Backend - Spring Boot (Java) 
+# [Note: Simplified REST controller for collecting health data]
+
+# --- HealthDataController.java ---
+
+@RestController
+@RequestMapping("/api/health")
+public class HealthDataController {
+
+    @Autowired
+    private HealthDataService healthDataService;
+
+    @PostMapping("/submit")
+    public ResponseEntity<String> submitHealthData(@RequestBody HealthDataDTO data) {
+        healthDataService.saveData(data);
+        return ResponseEntity.ok("Data received");
+    }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<HealthData>> getUserData(@PathVariable Long userId) {
+        List<HealthData> dataList = healthDataService.getDataByUser(userId);
+        return ResponseEntity.ok(dataList);
+    }
+}
+
+# --- HealthDataService.java ---
+@Service
+public class HealthDataService {
+
+    @Autowired
+    private HealthDataRepository repository;
+
+    public void saveData(HealthDataDTO dto) {
+        HealthData data = new HealthData(dto);
+        repository.save(data);
+    }
+
+    public List<HealthData> getDataByUser(Long userId) {
+        return repository.findByUserId(userId);
+    }
+}
+
+# --- HealthData.java (Entity) ---
+@Entity
+public class HealthData {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private Long userId;
+    private int heartRate;
+    private int steps;
+    private float sleepHours;
+    private LocalDateTime timestamp;
+
+    // Constructor, Getters, Setters
+}
+
+# Frontend - React.js
+# [Note: Simple form to submit health data]
+
+// --- HealthForm.jsx ---
+import React, { useState } from 'react';
+import axios from 'axios';
+
+const HealthForm = () => {
+  const [formData, setFormData] = useState({ heartRate: '', steps: '', sleepHours: '' });
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await axios.post('/api/health/submit', { ...formData, userId: 1 });
+    alert('Data submitted');
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input type="number" name="heartRate" placeholder="Heart Rate" onChange={handleChange} />
+      <input type="number" name="steps" placeholder="Steps" onChange={handleChange} />
+      <input type="number" name="sleepHours" placeholder="Sleep Hours" onChange={handleChange} />
+      <button type="submit">Submit</button>
+    </form>
+  );
+};
+
+export default HealthForm;
+
+# Machine Learning - Python
+# [Note: Basic health risk prediction model based on data]
+
+# --- health_ai_model.py ---
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+import joblib
+
+# Load dataset (for training purposes)
+data = pd.read_csv('health_data.csv')
+X = data[['heartRate', 'steps', 'sleepHours']]
+y = data['riskLevel']
+
+model = RandomForestClassifier()
+model.fit(X, y)
+
+# Save model
+joblib.dump(model, 'health_risk_model.pkl')
+
+# Predict
+def predict_risk(input_data):
+    model = joblib.load('health_risk_model.pkl')
+    prediction = model.predict([input_data])
+    return prediction[0]
+
+# Example usage
+if __name__ == '__main__':
+    print(predict_risk([80, 5000, 7]))
+
+# API Endpoint for Prediction (Flask)
+from flask import Flask, request, jsonify
+app = Flask(__name__)
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    data = request.json
+    prediction = predict_risk([data['heartRate'], data['steps'], data['sleepHours']])
+    return jsonify({'riskLevel': prediction})
+
+if __name__ == '__main__':
+    app.run(port=5000)
